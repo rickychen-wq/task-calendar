@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SYSTEM.CALENDAR // 核心終端</title>
+  <style>
+    /* --- 超帥暗黑科技 CSS --- */
+    body {
+      background-color: #0a0a0a;
+      color: #00ffcc;
+      font-family: 'Consolas', 'Courier New', monospace;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      background-image: radial-gradient(circle at 50% 0%, #1a1a2e 0%, #0a0a0a 70%);
+    }
+    .app-container {
+      width: 100%;
+      max-width: 500px;
+      padding: 30px;
+      box-sizing: border-box;
+    }
+    h2, h3, h4 {
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+    }
+    .input-box {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid #00ffcc;
+      color: #fff;
+      padding: 12px;
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 15px;
+      border-radius: 4px;
+      outline: none;
+      transition: box-shadow 0.3s ease;
+      font-family: 'Consolas', monospace;
+    }
+    .input-box:focus {
+      box-shadow: 0 0 15px rgba(0, 255, 204, 0.6);
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .btn-primary {
+      background: transparent;
+      color: #00ffcc;
+      border: 1px solid #00ffcc;
+      padding: 12px;
+      width: 100%;
+      cursor: pointer;
+      text-transform: uppercase;
+      font-weight: bold;
+      letter-spacing: 2px;
+      transition: all 0.3s ease;
+      box-shadow: inset 0 0 5px rgba(0, 255, 204, 0.2);
+      margin-bottom: 10px;
+    }
+    .btn-primary:hover {
+      background: #00ffcc;
+      color: #0a0a0a;
+      box-shadow: 0 0 20px rgba(0, 255, 204, 0.8);
+    }
+    .task-card {
+      background: rgba(0, 0, 0, 0.6);
+      border-left: 4px solid #00ffcc;
+      padding: 15px;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      backdrop-filter: blur(5px);
+    }
+    .task-card.overdue {
+      border-left-color: #ff0055;
+      box-shadow: 0 0 15px rgba(255, 0, 85, 0.3);
+    }
+    .task-card.overdue strong {
+      color: #ff0055;
+      text-shadow: 0 0 8px rgba(255, 0, 85, 0.5);
+    }
+    .btn-done {
+      background: transparent;
+      color: #fff;
+      border: 1px solid #777;
+      padding: 8px 15px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .btn-done:hover {
+      border-color: #00ffcc;
+      color: #00ffcc;
+    }
+    /* 隱藏區塊用的 class */
+    .hidden { display: none !important; }
+    .flex-header { display: flex; justify-content: space-between; border-bottom: 1px solid #00ffcc; padding-bottom: 10px; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <div id="login-view">
+      <h2 style="text-align: center; margin-bottom: 30px; margin-top: 10vh;">SYSTEM.LOGIN()</h2>
+      
+      <div id="auth-form">
+        <input type="text" id="userId" placeholder="輸入專屬 ID" class="input-box">
+        <input type="password" id="password" placeholder="輸入密碼" class="input-box">
+        <button id="login-btn" class="btn-primary">Authenticate</button>
+      </div>
+
+      <div id="register-form" class="hidden">
+        <p style="color: #ff0055; text-shadow: 0 0 5px #ff0055; text-align: center;">[ 查無此人，啟動新身分綁定 ]</p>
+        <input type="text" id="userName" placeholder="輸入你的代號 (名字)" class="input-box">
+        <button id="register-btn" class="btn-primary">Initialize (綁定並登入)</button>
+      </div>
+    </div>
+
+    <div id="main-view" class="hidden">
+      <div class="flex-header">
+        <h3 id="welcome-text">歡迎</h3>
+        <div>
+          <button id="show-add-btn" class="btn-done" style="border-color: #00ffcc; color: #00ffcc;">+ 新增</button>
+          <button id="logout-btn" class="btn-done" style="border-color: #ff0055; color: #ff0055;">登出</button>
+        </div>
+      </div>
+
+      <div id="add-view" class="hidden" style="margin-bottom: 30px; border: 1px dashed #00ffcc; padding: 15px;">
+        <h4 style="margin-top:0;">[ 新增排程 ]</h4>
+        <input type="text" id="taskTitle" placeholder="要做什麼？" class="input-box">
+        <input type="date" id="taskDate" class="input-box">
+        <input type="time" id="taskTime" class="input-box">
+        <div style="display: flex; gap: 10px;">
+          <button id="submit-task-btn" class="btn-primary" style="flex: 1;">確認輸入</button>
+          <button id="cancel-add-btn" class="btn-done" style="flex: 1;">取消</button>
+        </div>
+      </div>
+
+      <div id="overdue-container" class="hidden" style="margin-bottom: 30px;">
+        <h4 style="color: #ff0055; border-bottom: 1px solid #ff0055; padding-bottom: 5px;">🚨 已超時未完成！</h4>
+        <div id="overdue-list"></div>
+      </div>
+
+      <div id="upcoming-container">
+        <h4 style="color: #00ffcc; border-bottom: 1px solid #00ffcc; padding-bottom: 5px;">📅 接下來要做的</h4>
+        <div id="upcoming-list"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    // 1. 你的 Firebase 金鑰
+    const firebaseConfig = {
+      apiKey: "AIzaSyBszEuwV3W367ko03aj82hBF__I8kLjaDA",
+      authDomain: "task-calendar-e96b6.firebaseapp.com",
+      projectId: "task-calendar-e96b6",
+      storageBucket: "task-calendar-e96b6.firebasestorage.app",
+      messagingSenderId: "174274927666",
+      appId: "1:174274927666:web:5e39b5f19312c0a151b02b",
+      measurementId: "G-DY2T3F5W4N"
+    };
+
+    // 初始化 Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 全域變數存取當前使用者資訊
+    let currentUserId = "";
+    let currentUserName = "";
+
+    // --- 抓取畫面上所有的 HTML 元素 ---
+    const loginView = document.getElementById('login-view');
+    const authForm = document.getElementById('auth-form');
+    const registerForm = document.getElementById('register-form');
+    const mainView = document.getElementById('main-view');
+    const addView = document.getElementById('add-view');
+    
+    const overdueContainer = document.getElementById('overdue-container');
+    const overdueList = document.getElementById('overdue-list');
+    const upcomingList = document.getElementById('upcoming-list');
+
+    // --- 登入邏輯 ---
+    document.getElementById('login-btn').addEventListener('click', async () => {
+      const idInput = document.getElementById('userId').value;
+      const pwdInput = document.getElementById('password').value;
+      if (!idInput || !pwdInput) return alert("系統提示：請輸入憑證");
+
+      try {
+        const userSnap = await getDoc(doc(db, "users", idInput));
+        if (userSnap.exists()) {
+          if (userSnap.data().password === pwdInput) {
+            // 登入成功
+            currentUserId = userSnap.data().id;
+            currentUserName = userSnap.data().name;
+            showMainView();
+          } else {
+            alert("密碼錯誤，拒絕存取");
+          }
+        } else {
+          // 找不到帳號，切換到綁定畫面
+          authForm.classList.add('hidden');
+          registerForm.classList.remove('hidden');
+        }
+      } catch (e) {
+        console.error(e);
+        alert("資料庫連線異常，請檢查 Firebase 規則是否設定為 true");
+      }
+    });
+
+    // --- 註冊 (綁定) 邏輯 ---
+    document.getElementById('register-btn').addEventListener('click', async () => {
+      const idInput = document.getElementById('userId').value;
+      const pwdInput = document.getElementById('password').value;
+      const nameInput = document.getElementById('userName').value;
+      
+      if (!nameInput) return alert("請輸入終端代號！");
+
+      const newUser = { id: idInput, password: pwdInput, name: nameInput };
+      await setDoc(doc(db, "users", idInput), newUser);
+      
+      currentUserId = idInput;
+      currentUserName = nameInput;
+      showMainView();
+    });
+
+    // --- 畫面切換與資料載入 ---
+    function showMainView() {
+      loginView.classList.add('hidden');
+      mainView.classList.remove('hidden');
+      document.getElementById('welcome-text').innerText = `${currentUserName} 的行事曆`;
+      fetchTasks();
+    }
+
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      currentUserId = "";
+      currentUserName = "";
+      document.getElementById('userId').value = "";
+      document.getElementById('password').value = "";
+      authForm.classList.remove('hidden');
+      registerForm.classList.add('hidden');
+      mainView.classList.add('hidden');
+      loginView.classList.remove('hidden');
+    });
+
+    // --- 新增事項邏輯 ---
+    document.getElementById('show-add-btn').addEventListener('click', () => {
+      addView.classList.remove('hidden');
+    });
+
+    document.getElementById('cancel-add-btn').addEventListener('click', () => {
+      addView.classList.add('hidden');
+    });
+
+    document.getElementById('submit-task-btn').addEventListener('click', async () => {
+      const title = document.getElementById('taskTitle').value;
+      const date = document.getElementById('taskDate').value;
+      const time = document.getElementById('taskTime').value;
+
+      if (!title || !date || !time) return alert("資料不全，無法登錄排程。");
+
+      await addDoc(collection(db, "tasks"), {
+        userId: currentUserId,
+        title: title,
+        date: date,
+        time: time,
+        createdAt: new Date().getTime()
+      });
+
+      // 清空輸入並隱藏
+      document.getElementById('taskTitle').value = "";
+      document.getElementById('taskDate').value = "";
+      document.getElementById('taskTime').value = "";
+      addView.classList.add('hidden');
+      
+      fetchTasks();
+    });
+
+    // --- 抓取與渲染任務 ---
+    async function fetchTasks() {
+      const q = query(collection(db, "tasks"), where("userId", "==", currentUserId));
+      const querySnapshot = await getDocs(q);
+      const tasks = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      const now = new Date();
+      let overdue = [];
+      let upcoming = [];
+
+      tasks.forEach(task => {
+        const taskDateTime = new Date(`${task.date}T${task.time}`);
+        if (taskDateTime < now) {
+          overdue.push({ ...task, dateObj: taskDateTime });
+        } else {
+          upcoming.push({ ...task, dateObj: taskDateTime });
+        }
+      });
+
+      overdue.sort((a, b) => a.dateObj - b.dateObj);
+      upcoming.sort((a, b) => a.dateObj - b.dateObj);
+
+      renderTasks(overdue, upcoming);
+    }
+
+    function renderTasks(overdue, upcoming) {
+      overdueList.innerHTML = "";
+      upcomingList.innerHTML = "";
+
+      // 渲染超時任務
+      if (overdue.length > 0) {
+        overdueContainer.classList.remove('hidden');
+        overdue.forEach(task => {
+          overdueList.innerHTML += `
+            <div class="task-card overdue">
+              <div>
+                <strong style="font-size: 18px; display: block;">${task.title}</strong>
+                <span style="font-size: 14px;">原訂時間：${task.date} ${task.time}</span>
+              </div>
+              <button class="btn-done" onclick="window.completeTask('${task.id}')">完成</button>
+            </div>
+          `;
+        });
+      } else {
+        overdueContainer.classList.add('hidden');
+      }
+
+      // 渲染未來任務
+      if (upcoming.length === 0) {
+        upcomingList.innerHTML = `<p style="color: #777; text-align: center;">目前沒有待辦事項，太神啦！</p>`;
+      } else {
+        upcoming.forEach(task => {
+          upcomingList.innerHTML += `
+            <div class="task-card">
+              <div>
+                <strong style="font-size: 18px; display: block;">${task.title}</strong>
+                <span style="font-size: 14px; color: #888;">${task.date} ${task.time}</span>
+              </div>
+              <button class="btn-done" onclick="window.completeTask('${task.id}')">完成</button>
+            </div>
+          `;
+        });
+      }
+    }
+
+    // 將完成任務的函數掛載到 window，讓 HTML 的 onclick 可以呼叫
+    window.completeTask = async function(taskId) {
+      await deleteDoc(doc(db, "tasks", taskId));
+      fetchTasks();
+    };
+
+  </script>
+</body>
+</html>
